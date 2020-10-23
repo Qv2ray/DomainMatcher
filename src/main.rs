@@ -26,6 +26,7 @@ fn main() {
         let mut ac_automaton_2 = ACAutomaton::new(1);
         ac_automaton_2.reverse_insert("video.google.com", MatchType::Domain(true));
         ac_automaton_2.reverse_insert("gle.com", MatchType::Domain(true));
+        ac_automaton_2.build();
         assert_eq!(ac_automaton_2.reverse_query("google.com"), false); // substr
     }
     println!("Hello, DomainMatcher!");
