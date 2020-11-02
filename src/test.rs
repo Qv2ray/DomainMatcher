@@ -1,11 +1,12 @@
-mod ac_automaton;
-mod geosite;
+extern crate test;
 use crate::ac_automaton::ACAutomaton;
 use crate::ac_automaton::MatchType;
+use crate::geosite;
 use std::fs::File;
 
-fn main() {
-    let file = "src/geosite.dat";
+#[test]
+fn test_ac_automaton_with_geosite() {
+    let file = "data/geosite.dat";
     let mut f = match File::open(&file) {
         Ok(f) => f,
         Err(e) => {
@@ -13,17 +14,17 @@ fn main() {
             return;
         }
     };
-    let site_group_list:geosite::SiteGroupList =
+    let site_group_list: geosite::SiteGroupList =
         match protobuf::parse_from_reader::<geosite::SiteGroupList>(&mut f) {
             Ok(v) => v,
             Err(e) => {
                 eprintln!("dat file {} has invalid format: {}", file, e);
-                return
+                return;
             }
         };
-    let mut ac_automaton =ACAutomaton::new(15000);
-    for i in site_group_list.site_group.iter(){
-        if i.tag.to_uppercase()=="CN" {
+    let mut ac_automaton = ACAutomaton::new(15000);
+    for i in site_group_list.site_group.iter() {
+        if i.tag.to_uppercase() == "CN" {
             for domain in i.domain.iter() {
                 match domain.field_type {
                     geosite::Domain_Type::Plain => {
@@ -38,12 +39,26 @@ fn main() {
                     _ => {}
                 }
             }
-            break
+            break;
+        }
+    }
+    for i in site_group_list.site_group.iter() {
+        for domain in i.domain.iter() {
+            match domain.field_type {
+                geosite::Domain_Type::Regex => {
+                    println!("regex domain:{}", domain.get_value());
+                }
+                _ => {}
+            }
         }
     }
     ac_automaton.build();
-    println!("Mem size of ac_automaton: {} mb, trie node count: {}", ac_automaton.runtime_memory_size() as f32/(1024.0*1024.0), ac_automaton.trie_node_count());
-    assert_eq!(ac_automaton.reverse_query("163.com"),true);
-    assert_eq!(ac_automaton.reverse_query("164.com"),false);
+    println!(
+        "Mem size of ac_automaton: {} mb, trie node count: {}",
+        ac_automaton.runtime_memory_size() as f32 / (1024.0 * 1024.0),
+        ac_automaton.trie_node_count()
+    );
+    assert_eq!(ac_automaton.reverse_query("163.com"), true);
+    assert_eq!(ac_automaton.reverse_query("164.com"), false);
     println!("Hello, DomainMatcher!");
 }
