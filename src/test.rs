@@ -39,20 +39,26 @@ fn test_ac_automaton_with_geosite() {
                     _ => {}
                 }
             }
-            break;
-        }
-    }
-    for i in site_group_list.site_group.iter() {
-        for domain in i.domain.iter() {
-            match domain.field_type {
-                geosite::Domain_Type::Regex => {
-                    println!("regex domain:{}", domain.get_value());
-                }
-                _ => {}
-            }
         }
     }
     ac_automaton.build();
+    for i in site_group_list.site_group.iter() {
+        for domain in i.domain.iter() {
+            match domain.field_type {
+                // we leave the regex match type to regex library.
+                geosite::Domain_Type::Regex => {}
+                _ => {
+                    if i.tag.to_uppercase() == "CN" {
+                        assert_eq!(ac_automaton.reverse_query(domain.get_value()), true)
+                    } else if i.tag.to_uppercase() == "CATEGORY-SCHOLAR-!CN"
+                        && !domain.get_value().contains("cn")
+                    {
+                        assert_eq!(ac_automaton.reverse_query(domain.get_value()), false)
+                    }
+                }
+            }
+        }
+    }
     println!(
         "Mem size of ac_automaton: {} mb, trie node count: {}",
         ac_automaton.runtime_memory_size() as f32 / (1024.0 * 1024.0),
