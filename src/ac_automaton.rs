@@ -87,6 +87,24 @@ impl ACAutomaton {
             node = self.trie[node][idx].value();
         }
         self.exists[node] = match_type;
+        match match_type {
+            MatchType::Domain(_) => {
+                self.exists[node] = MatchType::Full(true);
+                let idx = char2idx('.');
+                if self.trie[node][idx].value() == 0 {
+                    self.count += 1;
+                    if self.trie.len() < self.count + 1 {
+                        self.trie.push([EdgeType::FailEdge(0); 53]);
+                        self.fail.push(0);
+                        self.exists.push(false.into());
+                    }
+                    self.trie[node][idx] = EdgeType::TrieEdge(self.count);
+                }
+                node = self.trie[node][idx].value();
+                self.exists[node] = match_type;
+            }
+            _ => {}
+        }
     }
 
     pub fn build(&mut self) {
@@ -121,39 +139,25 @@ impl ACAutomaton {
     pub fn reverse_query(&self, query_string: &str) -> bool {
         let mut node = 0;
         let mut full_match = true;
-        // 1. the match string is all through trie edge. FULL MATCH
+        // 1. the match string is all through trie edge. FULL MATCH or DOMAIN
         // 2. the match string is through a fail edge. NOT FULL MATCH
-        // 2.1 Through a fail edge, but there exists a valid node. DOMAIN or SUBSTR
-        for (i, c) in query_string.chars().rev().enumerate() {
+        // 2.1 Through a fail edge, but there exists a valid node. SUBSTR
+        for c in query_string.chars().rev() {
             node = match self.trie[node][char2idx(c)] {
                 EdgeType::TrieEdge(v) => v,
                 EdgeType::FailEdge(v) => {
-                    full_match &= false;
+                    full_match = false;
                     v
                 }
             };
-            let mut cur_node = node;
-            while cur_node != 0 {
-                match self.exists[node] {
-                    MatchType::SubStr(v) => {
-                        if v {
-                            return v;
-                        }
-                    }
-                    MatchType::Domain(v) => {
-                        // look ahead
-                        match query_string.chars().rev().nth(i + 1) {
-                            None | Some('.') => {
-                                if v {
-                                    return v;
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    _ => {}
+            match self.exists[node] {
+                MatchType::SubStr(v) if v => {
+                    return v;
                 }
-                cur_node = self.fail[cur_node];
+                MatchType::Domain(v) if full_match => {
+                    return v;
+                }
+                _ => {}
             }
         }
         match self.exists[node] {
@@ -247,6 +251,7 @@ fn test_ac_automaton() {
         ac_automaton_2.reverse_insert("video.google.com", MatchType::Domain(true));
         ac_automaton_2.reverse_insert("gle.com", MatchType::Domain(true));
         ac_automaton_2.build();
-        assert_eq!(ac_automaton_2.reverse_query("google.com"), false); // substr
+        assert_eq!(ac_automaton_2.reverse_query("google.com"), false);
+        assert_eq!(ac_automaton_2.reverse_query("video.google.com.hk"), false); // not sub domain
     }
 }
