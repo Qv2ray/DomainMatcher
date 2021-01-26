@@ -1,3 +1,6 @@
+use deepsize::Context;
+use deepsize::DeepSizeOf;
+use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::convert::From;
 
@@ -5,6 +8,59 @@ const fn count_host_valid_character() -> usize {
     // 'A-Za-z' "!$&'()*+,;=:%" "-._~" "0-9"
     //    26   + 13 + 4 + 10 = 53
     26 + 13 + 4 + 10
+}
+
+#[derive(DeepSizeOf)]
+pub struct HybridMatcher {
+    ac: ACAutomaton,
+    set: HashSet<String>,
+}
+
+impl HybridMatcher {
+    pub fn new(size: usize) -> HybridMatcher {
+        HybridMatcher {
+            ac: ACAutomaton::new(size),
+            set: HashSet::new(),
+        }
+    }
+    pub fn reverse_insert(&mut self, input_string: &str, match_type: MatchType) {
+        match match_type {
+            MatchType::SubStr(_) => self.ac.reverse_insert(input_string, match_type),
+            MatchType::Domain(_) => {
+                let mut s: String = input_string.chars().rev().collect();
+                self.set.insert(s.clone());
+                s.push('.');
+                self.set.insert(s);
+            }
+            MatchType::Full(_) => {
+                self.set.insert(input_string.chars().rev().collect());
+            }
+        }
+    }
+    pub fn reverse_query(&self, query_string: &str) -> bool {
+        let mut s = String::with_capacity(query_string.len());
+        for c in query_string.chars().rev() {
+            s.push(c);
+            if c == '.' && self.set.contains(&s) {
+                return true;
+            }
+        }
+        if self.set.contains(&s) {
+            true
+        } else {
+            if !self.ac.empty() {
+                self.ac.reverse_query(query_string)
+            } else {
+                false
+            }
+        }
+    }
+
+    pub fn build(&mut self) {
+        if !self.ac.empty() {
+            self.ac.build()
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -40,6 +96,12 @@ pub struct ACAutomaton {
     fail: Vec<usize>,
     exists: Vec<MatchType>,
     count: usize,
+}
+
+impl DeepSizeOf for ACAutomaton {
+    fn deep_size_of_children(&self, _: &mut Context) -> usize {
+        self.runtime_memory_size()
+    }
 }
 
 impl ACAutomaton {
@@ -134,6 +196,10 @@ impl ACAutomaton {
                 }
             }
         }
+    }
+
+    pub fn empty(&self) -> bool {
+        self.count == 0
     }
 
     pub fn reverse_query(&self, query_string: &str) -> bool {
@@ -248,6 +314,35 @@ fn test_ac_automaton() {
     }
     {
         let mut ac_automaton_2 = ACAutomaton::new(1);
+        ac_automaton_2.reverse_insert("video.google.com", MatchType::Domain(true));
+        ac_automaton_2.reverse_insert("gle.com", MatchType::Domain(true));
+        ac_automaton_2.build();
+        assert_eq!(ac_automaton_2.reverse_query("google.com"), false);
+        assert_eq!(ac_automaton_2.reverse_query("video.google.com.hk"), false); // not sub domain
+    }
+}
+#[test]
+fn test_hybrid_matcher() {
+    // initiallize a 1 node ac_automaton and force it expand capacity at runtime.
+    {
+        let mut ac_automaton = HybridMatcher::new(1);
+        ac_automaton.reverse_insert("163.com", MatchType::Domain(true));
+        ac_automaton.reverse_insert("m.126.com", MatchType::Full(true));
+        ac_automaton.reverse_insert("3.com", MatchType::Full(true));
+        ac_automaton.reverse_insert("google.com", MatchType::SubStr(true));
+        ac_automaton.reverse_insert("vgoogle.com", MatchType::SubStr(true));
+        ac_automaton.build();
+        assert_eq!(ac_automaton.reverse_query("126.com"), false);
+        assert_eq!(ac_automaton.reverse_query("mm163.com"), false);
+        assert_eq!(ac_automaton.reverse_query("m.163.com"), true); // sub domain
+        assert_eq!(ac_automaton.reverse_query("163.com"), true); // sub domain
+        assert_eq!(ac_automaton.reverse_query("63.com"), false);
+        assert_eq!(ac_automaton.reverse_query("m.126.com"), true); // full match
+        assert_eq!(ac_automaton.reverse_query("oogle.com"), false);
+        assert_eq!(ac_automaton.reverse_query("vvgoogle.com"), true); // substr
+    }
+    {
+        let mut ac_automaton_2 = HybridMatcher::new(1);
         ac_automaton_2.reverse_insert("video.google.com", MatchType::Domain(true));
         ac_automaton_2.reverse_insert("gle.com", MatchType::Domain(true));
         ac_automaton_2.build();
