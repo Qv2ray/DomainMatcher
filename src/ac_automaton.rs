@@ -14,6 +14,7 @@ const fn count_host_valid_character() -> usize {
 pub struct HybridMatcher {
     ac: ACAutomaton,
     set: HashSet<String>,
+    domain: String,
 }
 
 impl HybridMatcher {
@@ -21,6 +22,7 @@ impl HybridMatcher {
         HybridMatcher {
             ac: ACAutomaton::new(size),
             set: HashSet::new(),
+            domain: String::with_capacity(255),
         }
     }
     pub fn reverse_insert(&mut self, input_string: &str, match_type: MatchType) {
@@ -37,15 +39,15 @@ impl HybridMatcher {
             }
         }
     }
-    pub fn reverse_query(&self, query_string: &str) -> bool {
-        let mut s = String::with_capacity(query_string.len());
+    pub fn reverse_query(&mut self, query_string: &str) -> bool {
+        self.domain.clear();
         for c in query_string.chars().rev() {
-            s.push(c);
-            if c == '.' && self.set.contains(&s) {
+            self.domain.push(c);
+            if c == '.' && self.set.contains(&self.domain) {
                 return true;
             }
         }
-        if self.set.contains(&s) {
+        if self.set.contains(&self.domain) {
             true
         } else {
             if !self.ac.empty() {
