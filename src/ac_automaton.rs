@@ -1,8 +1,9 @@
 use deepsize::Context;
 use deepsize::DeepSizeOf;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::convert::From;
+use std::num::Wrapping;
 
 const fn count_host_valid_character() -> usize {
     // 'A-Za-z' "!$&'()*+,;=:%" "-._~" "0-9"
@@ -10,52 +11,65 @@ const fn count_host_valid_character() -> usize {
     26 + 13 + 4 + 10
 }
 
+const PRIMEFK: Wrapping<u32> = Wrapping(16777619u32);
+
 #[derive(DeepSizeOf)]
 pub struct HybridMatcher {
     ac: ACAutomaton,
-    set: HashSet<String>,
-    domain: String,
+    map: HashMap<u32, String>,
 }
 
 impl HybridMatcher {
     pub fn new(size: usize) -> HybridMatcher {
         HybridMatcher {
             ac: ACAutomaton::new(size),
-            set: HashSet::new(),
-            domain: String::with_capacity(255),
+            map: HashMap::new(),
         }
     }
     pub fn reverse_insert(&mut self, input_string: &str, match_type: MatchType) {
+        let mut h = Wrapping(0u32);
+        for c in input_string.bytes().rev() {
+            h = h * PRIMEFK + Wrapping(c as u32);
+        }
         match match_type {
             MatchType::SubStr(_) => self.ac.reverse_insert(input_string, match_type),
             MatchType::Domain(_) => {
-                let mut s: String = input_string.chars().rev().collect();
-                self.set.insert(s.clone());
-                s.push('.');
-                self.set.insert(s);
+                self.map.insert(h.0, input_string.to_string());
+                self.map.insert(
+                    (h * PRIMEFK + Wrapping(b'.' as u32)).0,
+                    format!(".{}", input_string),
+                );
             }
             MatchType::Full(_) => {
-                self.set.insert(input_string.chars().rev().collect());
+                self.map.insert(h.0, input_string.to_string());
             }
         }
     }
-    pub fn reverse_query(&mut self, query_string: &str) -> bool {
-        self.domain.clear();
-        for c in query_string.chars().rev() {
-            self.domain.push(c);
-            if c == '.' && self.set.contains(&self.domain) {
-                return true;
+    pub fn reverse_query(&self, query_string: &str) -> bool {
+        let mut h = Wrapping(0u32);
+        let mut idx = Wrapping(query_string.len() - 1);
+        for c in query_string.bytes().rev() {
+            h = h * PRIMEFK + Wrapping(c as u32);
+            if c == b'.' {
+                match self.map.get(&h.0) {
+                    Some(v) if v == &query_string[idx.0..] => {
+                        return true;
+                    }
+                    _ => {}
+                }
             }
+            idx -= Wrapping(1);
         }
-        if self.set.contains(&self.domain) {
-            true
-        } else {
-            if !self.ac.empty() {
-                self.ac.reverse_query(query_string)
-            } else {
-                false
+        return match self.map.get(&h.0) {
+            Some(v) if v == query_string => true,
+            _ => {
+                if !self.ac.empty() {
+                    self.ac.reverse_query(query_string)
+                } else {
+                    false
+                }
             }
-        }
+        };
     }
 
     pub fn build(&mut self) {
