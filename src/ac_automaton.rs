@@ -11,12 +11,14 @@ const fn count_host_valid_character() -> usize {
     26 + 13 + 4 + 10
 }
 
-const PRIMEFK: Wrapping<u32> = Wrapping(16777619u32);
+type RollingHashType = u32;
+const PRIMEFK: Wrapping<RollingHashType> = Wrapping(16777619);
+const OFFSETS: Wrapping<RollingHashType> = Wrapping(0);
 
 #[derive(DeepSizeOf)]
 pub struct HybridMatcher {
     ac: ACAutomaton,
-    map: HashMap<u32, String>,
+    map: HashMap<RollingHashType, Vec<String>>,
 }
 
 impl HybridMatcher {
@@ -26,33 +28,45 @@ impl HybridMatcher {
             map: HashMap::new(),
         }
     }
+
     pub fn reverse_insert(&mut self, input_string: &str, match_type: MatchType) {
-        let mut h = Wrapping(0u32);
+        let mut h = OFFSETS;
         for c in input_string.bytes().rev() {
-            h = h * PRIMEFK + Wrapping(c as u32);
+            h = h * PRIMEFK + Wrapping(c as RollingHashType);
         }
         match match_type {
             MatchType::SubStr(_) => self.ac.reverse_insert(input_string, match_type),
             MatchType::Domain(_) => {
-                self.map.insert(h.0, input_string.to_string());
-                self.map.insert(
-                    (h * PRIMEFK + Wrapping(b'.' as u32)).0,
+                self.insert(h.0, input_string.to_string());
+                self.insert(
+                    (h * PRIMEFK + Wrapping(b'.' as RollingHashType)).0,
                     format!(".{}", input_string),
                 );
             }
             MatchType::Full(_) => {
-                self.map.insert(h.0, input_string.to_string());
+                self.insert(h.0, input_string.to_string());
             }
         }
     }
+
+    fn insert(&mut self, h: RollingHashType, s: String) {
+        if let Some(v) = self.map.get_mut(&h) {
+            if !v.contains(&s) {
+                v.push(s);
+            }
+        } else {
+            self.map.insert(h, vec![s]);
+        }
+    }
+
     pub fn reverse_query(&self, query_string: &str) -> bool {
-        let mut h = Wrapping(0u32);
+        let mut h = OFFSETS;
         let mut idx = Wrapping(query_string.len() - 1);
         for c in query_string.bytes().rev() {
-            h = h * PRIMEFK + Wrapping(c as u32);
+            h = h * PRIMEFK + Wrapping(c as RollingHashType);
             if c == b'.' {
                 match self.map.get(&h.0) {
-                    Some(v) if v == &query_string[idx.0..] => {
+                    Some(v) if v.iter().any(|x| x == &query_string[idx.0..]) => {
                         return true;
                     }
                     _ => {}
@@ -61,7 +75,7 @@ impl HybridMatcher {
             idx -= Wrapping(1);
         }
         return match self.map.get(&h.0) {
-            Some(v) if v == query_string => true,
+            Some(v) if v.iter().any(|x| x == query_string) => true,
             _ => {
                 if !self.ac.empty() {
                     self.ac.reverse_query(query_string)
