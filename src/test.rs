@@ -134,8 +134,8 @@ fn test_mph_matcher_with_geosite() {
     let mut mph_matcher = MphMatcher::new(1);
     test_with_geosite(&mut mph_matcher);
     println!(
-        "Mem size of hybrid matcher: {} mb",
+        "Mem size of Mph matcher: {} mb",
         mph_matcher.deep_size_of() as f32 / (1024.0 * 1024.0),
     );
-    println!("Hello, Hybrid DomainMatcher!");
+    println!("Hello, Mph DomainMatcher!");
 }

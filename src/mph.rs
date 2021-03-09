@@ -1,7 +1,9 @@
 use crate::ac_automaton::ACAutomaton;
+use crate::murmur3::Murmur3;
 use crate::{DomainMatcher, MatchType};
 use deepsize::DeepSizeOf;
-use fasthash::murmur3::hash32_with_seed as hash_with_seed;
+use std::collections::HashSet;
+use std::iter::FromIterator;
 use std::num::Wrapping;
 
 type RollingHashType = u32;
@@ -60,6 +62,9 @@ impl DomainMatcher for MphMatcher {
         if !self.ac.empty() {
             self.ac.build()
         }
+        let rules = std::mem::take(&mut self.rules);
+        let set: HashSet<String> = HashSet::from_iter(rules);
+        self.rules = Vec::from_iter(set);
         let size = self.rules.len();
         let level0_size = (size / 4).next_power_of_two();
         let level1_size = size.next_power_of_two();
@@ -92,7 +97,7 @@ impl DomainMatcher for MphMatcher {
                 let mut find_seed = true;
                 for rule_idx in bucket.1 {
                     let level1_idx =
-                        hash_with_seed(&self.rules[*rule_idx as usize], seed) & self.level1_mask;
+                        seed.murmur_hash(&self.rules[*rule_idx as usize]) & self.level1_mask;
                     if occ[level1_idx as usize] {
                         tmp_occ
                             .iter()
@@ -134,12 +139,11 @@ impl MphMatcher {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     fn lookup(&self, h: RollingHashType, query_string: &str) -> bool {
         let level0_idx = h & self.level0_mask;
         let seed = self.level0[level0_idx as usize] as Level1HashType;
-        let level1_idx = hash_with_seed(query_string, seed) & self.level1_mask;
-        let res = self.rules[self.level1[level1_idx as usize] as usize] == query_string;
-        return res;
+        let level1_idx = seed.murmur_hash(query_string) & self.level1_mask;
+        return self.rules[self.level1[level1_idx as usize] as usize] == query_string;
     }
 }

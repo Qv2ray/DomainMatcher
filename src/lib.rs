@@ -6,6 +6,7 @@ mod benchmark;
 #[cfg(test)]
 pub mod geosite;
 pub mod mph;
+mod murmur3;
 #[cfg(test)]
 mod test;
 

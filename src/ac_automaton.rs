@@ -233,6 +233,7 @@ impl DomainMatcher for ACAutomaton {
 
 impl ACAutomaton {
     pub fn new(size: usize) -> ACAutomaton {
+        let size = if size == 0 { 1 } else { size };
         ACAutomaton {
             trie: vec![[EdgeType::FailEdge(0); 53]; size],
             fail: vec![0; size],
