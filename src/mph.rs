@@ -2,8 +2,6 @@ use crate::ac_automaton::ACAutomaton;
 use crate::murmur3::Murmur3;
 use crate::{DomainMatcher, MatchType};
 use deepsize::DeepSizeOf;
-use std::collections::HashSet;
-use std::iter::FromIterator;
 use std::num::Wrapping;
 
 type RollingHashType = u32;
@@ -26,11 +24,11 @@ impl DomainMatcher for MphMatcher {
         match match_type {
             MatchType::SubStr(_) => self.ac.reverse_insert(input_string, match_type),
             MatchType::Domain(_) => {
-                self.rules.push(input_string.to_string());
-                self.rules.push(format!(".{}", input_string));
+                self.insert_rules(input_string.to_string());
+                self.insert_rules(format!(".{}", input_string));
             }
             MatchType::Full(_) => {
-                self.rules.push(input_string.to_string());
+                self.insert_rules(input_string.to_string());
             }
         }
     }
@@ -62,9 +60,6 @@ impl DomainMatcher for MphMatcher {
         if !self.ac.empty() {
             self.ac.build()
         }
-        let rules = std::mem::take(&mut self.rules);
-        let set: HashSet<String> = HashSet::from_iter(rules);
-        self.rules = Vec::from_iter(set);
         let size = self.rules.len();
         let level0_size = (size / 4).next_power_of_two();
         let level1_size = size.next_power_of_two();
@@ -136,6 +131,15 @@ impl MphMatcher {
             level0_mask: 0,
             level1: Vec::new(),
             level1_mask: 0,
+        }
+    }
+
+    fn insert_rules(&mut self, pattern: String) {
+        match self.rules.binary_search(&pattern) {
+            Err(pos) => {
+                self.rules.insert(pos, pattern);
+            }
+            _ => {}
         }
     }
 

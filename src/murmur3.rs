@@ -6,19 +6,18 @@ pub trait Murmur3 {
 
 impl Murmur3 for u32 {
     fn murmur_hash<T: AsRef<[u8]>>(self, bytes: T) -> u32 {
-        let len = Wrapping(bytes.as_ref().len() as u32);
+        let ptr = bytes.as_ref().as_ptr();
+        let len = bytes.as_ref().len();
         let mut h = Wrapping(self);
         let c1 = Wrapping(0xcc9e2d51u32);
         let c2 = Wrapping(0x1b873593u32);
 
         unsafe {
-            let bytes = bytes.as_ref();
             let (block, left): (&[u32], &[u8]) = {
-                let rest_len = bytes.len();
-                let (us_len, ts_len) = (rest_len / 4, rest_len & 3);
+                let (us_len, ts_len) = (len / 4, len & 3);
                 (
-                    std::slice::from_raw_parts(bytes.as_ptr() as *const u32, us_len),
-                    std::slice::from_raw_parts(bytes.as_ptr().add(bytes.len() - ts_len), ts_len),
+                    std::slice::from_raw_parts(ptr as *const u32, us_len),
+                    std::slice::from_raw_parts(ptr.add(len - ts_len), ts_len),
                 )
             };
             for &k in block.iter() {
@@ -58,7 +57,7 @@ impl Murmur3 for u32 {
                 0 => {}
                 _ => core::hint::unreachable_unchecked(),
             }
-            h ^= len;
+            h ^= Wrapping(len as u32);
             h ^= h >> 16;
             h *= Wrapping(0x85ebca6b);
             h ^= h >> 13;
