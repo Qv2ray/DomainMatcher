@@ -5,8 +5,8 @@ pub mod ac_automaton;
 mod benchmark;
 #[cfg(test)]
 pub mod geosite;
+mod mem_hash;
 pub mod mph;
-mod murmur3;
 #[cfg(test)]
 mod test;
 

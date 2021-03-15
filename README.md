@@ -13,7 +13,7 @@ Domain is the type of matcher that the input string must be a sub-domain or itse
 
 The DomainMatcher is divided into two parts:
 
-1. `full` and `domain` patterns are matched by Rabin-Karp algorithm;
+1. `full` and `domain` patterns are matched by Rabin-Karp algorithm & minimal perfect hash table;
 2. `substr` patterns are matched by ac automaton;
 
 
@@ -25,9 +25,20 @@ Matching problem definition:
 
 Through the above definition, we can merge the `full` and `domain` rules together to match. The simplest way is to store these rules in the `HashMap`. However, when we query, we need to calculate the hash value of the same string and its substrings. This additional overhead can be reduced by rolling hash. 
 
-In this way, our `HashMap` needs to store `KeyValue<RollingHashType,String>`. 
+We choose `32bit FNV-prime 16777619` to calculate our rolling hash.
 
-Of course, it should be noted that the rolling hash will collide with a small probability, and we need to open hashing. The key-value pair becomes `KeyValue<RollingHashType,Vec<String>>`.
+Inspired by ["Hash, displace, and compress" algorithm](http://cmph.sourceforge.net/papers/esa09.pdf), we can design a [minimal perfect hash table](https://en.wikipedia.org/wiki/Perfect_hash_function#Minimal_perfect_hash_function) through two rounds hashes. The first round of hash is rolling hash, which we get directly from the process of traversing the string. The second round of hash is [memhash](https://golang.org/src/runtime/hash64.go). 
 
-We choose `32bit fnv-prime 16777619` to calculate our rolling hash.
 
+In this way, when checking whether the rule is hit, we only need to calculate the hash and compare it once.
+
+
+````rust
+#[inline(always)]
+fn lookup(&self, h: RollingHashType, query_string: &str) -> bool {
+    let level0_idx = h & self.level0_mask;
+    let seed = self.level0[level0_idx as usize] as Level1HashType;
+    let level1_idx = seed.mem_hash(query_string) & self.level1_mask;
+    return self.rules[self.level1[level1_idx as usize] as usize] == query_string;
+}
+````

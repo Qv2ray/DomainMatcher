@@ -1,5 +1,5 @@
 use crate::ac_automaton::ACAutomaton;
-use crate::murmur3::Murmur3;
+use crate::mem_hash::MemHash;
 use crate::{DomainMatcher, MatchType};
 use deepsize::DeepSizeOf;
 use std::num::Wrapping;
@@ -92,7 +92,7 @@ impl DomainMatcher for MphMatcher {
                 let mut find_seed = true;
                 for rule_idx in bucket.1 {
                     let level1_idx =
-                        seed.murmur_hash(&self.rules[*rule_idx as usize]) & self.level1_mask;
+                        seed.mem_hash(&self.rules[*rule_idx as usize]) & self.level1_mask;
                     if occ[level1_idx as usize] {
                         tmp_occ
                             .iter()
@@ -147,7 +147,7 @@ impl MphMatcher {
     fn lookup(&self, h: RollingHashType, query_string: &str) -> bool {
         let level0_idx = h & self.level0_mask;
         let seed = self.level0[level0_idx as usize] as Level1HashType;
-        let level1_idx = seed.murmur_hash(query_string) & self.level1_mask;
+        let level1_idx = seed.mem_hash(query_string) & self.level1_mask;
         return self.rules[self.level1[level1_idx as usize] as usize] == query_string;
     }
 }
