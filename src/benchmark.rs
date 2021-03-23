@@ -14,13 +14,12 @@ pub fn read_file(matcher: &mut impl DomainMatcher) -> SiteGroupList {
             panic!("open dat file {} failed: {}", file, e);
         }
     };
-    let geosite_list: geosite::SiteGroupList =
-        match protobuf::parse_from_reader::<geosite::SiteGroupList>(&mut f) {
-            Ok(v) => v,
-            Err(e) => {
-                panic!("dat file {} has invalid format: {}", file, e);
-            }
-        };
+    let geosite_list: geosite::SiteGroupList = match protobuf::Message::parse_from_reader(&mut f) {
+        Ok(v) => v,
+        Err(e) => {
+            panic!("dat file {} has invalid format: {}", file, e);
+        }
+    };
     for i in geosite_list.site_group.iter() {
         if i.tag.to_uppercase() == "CN" {
             for domain in i.domain.iter() {

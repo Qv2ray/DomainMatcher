@@ -12,4 +12,4 @@ deepsize = "0.2.0"
 protobuf = { version = "2.18.0", features = ["with-bytes"] }
 
 [build-dependencies]
-protoc-rust = "2.0"
+protoc-rust = "2.22.1"

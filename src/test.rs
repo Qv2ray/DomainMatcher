@@ -58,14 +58,14 @@ fn test_with_geosite(matcher: &mut impl DomainMatcher) {
             return;
         }
     };
-    let site_group_list: geosite::SiteGroupList =
-        match protobuf::parse_from_reader::<geosite::SiteGroupList>(&mut f) {
-            Ok(v) => v,
-            Err(e) => {
-                eprintln!("dat file {} has invalid format: {}", file, e);
-                return;
-            }
-        };
+    let site_group_list: geosite::SiteGroupList = match protobuf::Message::parse_from_reader(&mut f)
+    {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("dat file {} has invalid format: {}", file, e);
+            return;
+        }
+    };
     for i in site_group_list.site_group.iter() {
         if i.tag.to_uppercase() == "CN" {
             for domain in i.domain.iter() {
