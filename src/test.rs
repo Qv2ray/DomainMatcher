@@ -1,4 +1,3 @@
-extern crate test;
 use crate::ac_automaton::ACAutomaton;
 use crate::ac_automaton::HybridMatcher;
 use crate::mph::MphMatcher;

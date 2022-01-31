@@ -1,13 +1,9 @@
-#![feature(test)]
-
 pub mod ac_automaton;
-#[cfg(test)]
-mod benchmark;
-#[cfg(test)]
+#[cfg(feature = "pb")]
 pub mod geosite;
 mod mem_hash;
 pub mod mph;
-#[cfg(test)]
+#[cfg(all(test, feature = "pb"))]
 mod test;
 
 #[derive(Copy, Clone)]
