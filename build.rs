@@ -1,7 +1,5 @@
-extern crate protoc_rust;
-
 fn main() {
-    protoc_rust::Codegen::new()
+    protobuf_codegen_pure::Codegen::new()
         .out_dir("src/")
         .inputs(&["src/geosite.proto"])
         .include(".")

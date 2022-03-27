@@ -22,4 +22,4 @@ harness = false
 required-features = ["pb"]
 
 [build-dependencies]
-protoc-rust = "2.22.1"
+protobuf-codegen-pure = "2.27.1"
